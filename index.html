@@ -196,6 +196,33 @@ body[data-screen="form"] .brushbar{top:calc(env(safe-area-inset-top,0px) + 74px)
 #toast.on{opacity:1;transform:translate(-50%,0)}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
 
+
+/* paso 3 · clase a clase */
+html{scroll-padding-top:110px;scroll-padding-bottom:110px}
+.days7{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.day{font-size:14px}
+.day.we{border-style:dashed}
+.day.we[aria-pressed=true]{border-style:solid}
+.builder.active{border-color:var(--text)}
+.ctitle{display:flex;justify-content:space-between;align-items:baseline}
+.ctitle b{font-family:var(--display);font-weight:900;font-style:italic;font-size:19px;text-transform:uppercase}
+.ctitle small{font-size:12.5px;color:var(--muted)}
+.fbtns{display:flex;gap:8px}
+.fbtns .btn{flex:1;font-size:16px;padding:12px;min-height:50px;text-transform:uppercase}
+.fbtns .btn.ghost{flex:0 0 auto;text-transform:none;font-size:14px}
+.btn.addmore{width:100%;min-height:54px;background:transparent;color:var(--purple);border:2px dashed var(--purple);font-size:17px;text-transform:uppercase}
+.btn.addmore:hover{background:var(--purple-soft)}
+.done{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+.done .n{width:30px;height:30px;border-radius:50%;background:var(--purple);color:#0B0610;display:grid;place-items:center;font-family:var(--display);font-weight:900;font-style:italic;font-size:14px}
+.done b{display:block;font-family:var(--display);font-weight:900;font-size:14px;text-transform:uppercase;line-height:1.25}
+.done span{font-size:13.5px;color:var(--muted)}
+.dact{display:flex;gap:6px}
+.ib{appearance:none;cursor:pointer;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#000;color:var(--text);font-size:15px;line-height:1;touch-action:manipulation}
+.ib:hover{border-color:var(--muted)}
+.sumline{font-size:14px;color:var(--muted)}
+.sumline b{font-family:var(--display);font-weight:900;font-size:26px;color:var(--text);margin-right:2px}
+.sumline span{display:block;font-size:12.5px;margin-top:2px}
+
 /* top bar */
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 14px}
 .bar .brand{flex-basis:100%;justify-content:center}
@@ -409,7 +436,7 @@ const state = {
   screen:"welcome", step:0,
   nombre:"", artistico:"", instagram:"", email:"", telefono:"",
   anos:3, estilos:[], estiloOtro:"", alumnos:"", situacion:"",
-  franja:"ambas", finde:true, cal:null, franjas:[], draft:{dias:[],sala:"",ini:"",fin:""}, nextId:1,
+  franja:"ambas", finde:true, cal:null, franjas:[], showForm:false, draft:{dias:[],sala:"",ini:"",fin:""}, nextId:1,
   flexHorario:"", flexSala:"", salasAlt:[],
   inicio:"", inicioMes:"", tempIni:"", tempFin:"", ensayo:"", comentarios:"", rgpd:false,
   sent:null
@@ -458,6 +485,7 @@ function tally(){
   Object.keys(porSala).forEach(k=>porSala[k]=h(porSala[k]));
   return {am:h(am),pm:h(pm),total:h(am+pm),porSala};
 }
+function diasLargo(dias){ const l=DIAS.filter(d=>dias.includes(d)); return l.length<2?l.join(""):l.slice(0,-1).join(", ")+" y "+l[l.length-1]; }
 function diasTxt(dias){ return DIAS.filter(d=>dias.includes(d)).map(d=>d.slice(0,3)).join(" · "); }
 
 /* ---------- logos ---------- */
@@ -601,25 +629,29 @@ const steps = {
     const room = s=>`<button type="button" class="room2${s.id==="any"?" any":""}" data-dsala="${s.id}" aria-pressed="${d.sala===s.id}" style="--c:${s.color};--ink:${s.ink}">
         <span class="rt"><span class="sw">${s.n}</span><b>${s.id==="any"?"Cualquiera":s.nombre}</b>${s.m2?`<em>${s.m2} m<sup>2</sup></em>`:""}</span>
         <small>${s.capacidad}</small>${s.precio?`<span class="price">Desde ${s.precio} €/h <span class="iva">+ IVA</span></span>`:""}</button>`;
-    const list = state.franjas.map(f=>{ const s=salaById(f.sala); return `<li class="fitem"><span class="sw" style="--c:${s.color};--ink:${s.ink}">${s.n}</span>
-        <div><b>${diasTxt(f.dias)}</b><span>${f.ini}–${f.fin} · ${salaTxt(f.sala)}</span></div>
-        <button type="button" class="del" data-del="${f.id}" aria-label="Quitar franja">×</button></li>`; }).join("");
-    return `${stepHead("Sala y horas")}
-    <div class="q">${QL(1,"Añade tus franjas")}
-      <p class="hint">Abrimos de lunes a domingo, de 09:00 a 22:00. Elige días, sala y horario, y pulsa Añadir. Repite para cada clase que quieras dar.</p>
-      <div class="builder">
-        <div class="bl">Días <small>puedes marcar varios</small></div>
-        <div class="days" style="grid-template-columns:repeat(${diasPermitidos().length},minmax(0,1fr))">${diasPermitidos().map(x=>`<button type="button" class="day" data-dia="${x}" aria-pressed="${d.dias.includes(x)}" aria-label="${x}">${DIA_CORTO[x]}</button>`).join("")}</div>
+    const nClase = state.editBackup ? state.franjas.filter(x=>x.id<state.editBackup.id).length+1 : state.franjas.length+1;
+    const list = state.franjas.map((f,i)=>`<li class="done"><span class="n">${i+1}</span>
+        <div><b>${diasLargo(f.dias)}</b><span>${f.ini}–${f.fin} · ${salaTxt(f.sala)}</span></div>
+        <div class="dact"><button type="button" class="ib" data-edit-f="${f.id}" aria-label="Editar clase ${i+1}">✎</button><button type="button" class="ib" data-del="${f.id}" aria-label="Quitar clase ${i+1}">×</button></div></li>`).join("");
+    const T=tally();
+    const form = `<div class="builder active">
+        <div class="ctitle"><b>Clase ${nClase}</b><small>${state.editBackup?"Editando":state.franjas.length?"Nueva":"Tu primera clase"}</small></div>
+        <div class="bl">Días <small>marca todos los días en que das esta clase</small></div>
+        <div class="days7">${diasPermitidos().map(x=>`<button type="button" class="day${esFinde(x)?" we":""}" data-dia="${x}" aria-pressed="${d.dias.includes(x)}" aria-label="${x}">${x==="Miércoles"?"Mié":x==="Sábado"?"Sáb":x.slice(0,3)}</button>`).join("")}</div>
         <div class="bl">Sala</div>
         <div class="rooms2">${[...SALAS,CUALQUIERA].map(room).join("")}</div>
         <p class="pnote">Si alquilas varias sesiones a la semana, ajustamos el precio según el volumen de horas.</p>
         <div class="bl">Horario</div>
         <div class="times"><label>De<select id="dIni">${opts(a,b-30,d.ini)}</select></label><label>a<select id="dFin">${opts(iniMin,b,d.fin)}</select></label></div>
         <div class="err" id="e-draft"></div>
-        <button type="button" class="btn add" data-add>+ Añadir franja</button>
-      </div>
+        <div class="fbtns">${(state.franjas.length||state.editBackup)?`<button type="button" class="btn ghost" data-cancel-f>Cancelar</button>`:""}<button type="button" class="btn add" data-add>Guardar clase ${nClase}</button></div>
+      </div>`;
+    return `${stepHead("Tus clases")}
+    <div class="q">${QL(1,"Añade las clases que quieres dar")}
+      <p class="hint">Abrimos de lunes a domingo, de 09:00 a 22:00. Añade cada clase por separado: puedes añadir todas las que necesites.</p>
       ${state.franjas.length?`<ul class="flist">${list}</ul>`:""}
-      <div class="tally" id="tally"></div>
+      ${(state.showForm||!state.franjas.length)?form:`<button type="button" class="btn addmore" data-showform>+ Añadir otra clase</button>`}
+      ${state.franjas.length?`<div class="sumline"><b>${String(T.total).replace(".",",")}</b> h/semana · ${state.franjas.length} ${state.franjas.length===1?"clase":"clases"} <span>(${String(T.am).replace(".",",")} h de mañana, ${String(T.pm).replace(".",",")} h de tarde)</span></div>`:""}
       <div class="err" id="e-slots"></div>
     </div>
     <div class="q">${QL(2,"¿Tienes flexibilidad para mover tus horarios?")}
@@ -842,7 +874,7 @@ app.addEventListener("click", async e=>{
   if("next" in d){
     const key=FORM_STEPS[state.step];
     if(key==="horario"){ const f=state.draft;
-      if(f.dias.length && f.sala && f.ini && f.fin){ state.franjas.push({id:state.nextId++,dias:[...f.dias],sala:f.sala,ini:f.ini,fin:f.fin}); state.draft={dias:[],sala:"",ini:"",fin:""}; } }
+      if(f.dias.length && f.sala && f.ini && f.fin){ state.franjas.push({id:state.editBackup?state.editBackup.id:state.nextId++,dias:[...f.dias],sala:f.sala,ini:f.ini,fin:f.fin}); state.draft={dias:[],sala:"",ini:"",fin:""}; state.editBackup=null; state.showForm=false; state.franjas.sort((a,b)=>a.id-b.id); } else if(state.editBackup && !(f.dias.length||f.ini||f.fin)){ state.franjas.push(state.editBackup); state.editBackup=null; } }
     if(validate(key)) go("form",state.step+1);
     else { const e=[...document.querySelectorAll(".err")].find(x=>x.textContent); if(e) e.scrollIntoView({behavior:"smooth",block:"center"}); }
     return; }
@@ -874,10 +906,14 @@ app.addEventListener("click", async e=>{
     const f=state.draft;
     const msg = !f.dias.length?"Marca al menos un día.":!f.sala?"Elige una sala.":(!f.ini||!f.fin)?"Elige la hora de inicio y la de fin.":"";
     if(msg){ setErr("draft",msg); return; }
-    state.franjas.push({id:state.nextId++,dias:[...f.dias],sala:f.sala,ini:f.ini,fin:f.fin});
+    const keepId = state.editBackup ? state.editBackup.id : state.nextId++;
+    state.franjas.push({id:keepId,dias:[...f.dias],sala:f.sala,ini:f.ini,fin:f.fin}); state.franjas.sort((a,b)=>a.id-b.id); state.editBackup=null;
     state.draft={dias:[],sala:f.sala,ini:"",fin:""};
-    const y=window.scrollY; render(); window.scrollTo(0,y); toast("Franja añadida"); return;
+    state.showForm=false; const y=window.scrollY; render(); window.scrollTo(0,y); toast("Clase guardada"); return;
   }
+  if("showform" in d){ state.showForm=true; state.draft={dias:[],sala:state.draft.sala||"",ini:"",fin:""}; render(); const c=document.querySelector(".builder.active"); if(c) c.scrollIntoView({behavior:"smooth",block:"start"}); return; }
+  if("cancelF" in d){ if(state.editBackup){ state.franjas.push(state.editBackup); state.franjas.sort((a,b)=>a.id-b.id); state.editBackup=null; } state.showForm=false; state.draft={dias:[],sala:"",ini:"",fin:""}; const y=window.scrollY; render(); window.scrollTo(0,y); return; }
+  if(d.editF){ const f=state.franjas.find(x=>x.id==+d.editF); if(f){ if(state.editBackup) state.franjas.push(state.editBackup); state.editBackup=f; state.franjas=state.franjas.filter(x=>x.id!==f.id); state.draft={dias:[...f.dias],sala:f.sala,ini:f.ini,fin:f.fin}; state.showForm=true; render(); const c=document.querySelector(".builder.active"); if(c) c.scrollIntoView({behavior:"smooth",block:"start"}); } return; }
   if(d.del){ state.franjas=state.franjas.filter(f=>f.id!=+d.del); const y=window.scrollY; render(); window.scrollTo(0,y); return; }
   if("send" in d){
     const payload = buildPayload(); b.disabled=true; b.textContent="Enviando…";
