@@ -89,7 +89,7 @@ symbol .af{fill:var(--purple);stroke:none}
 .dotn{position:relative;width:36px;height:36px;border-radius:50%;background:var(--purple);color:#0B0610;display:grid;place-items:center;
   font-family:var(--display);font-weight:900;font-style:italic;font-size:17px;box-shadow:0 0 0 6px var(--bg)}
 .timeline p{font-size:13.5px;line-height:1.35;color:var(--text)}
-.limited{margin:0 auto;display:inline-block;font-family:var(--display);font-weight:900;font-style:italic;text-transform:uppercase;font-size:16px;letter-spacing:.1em;color:#0B0610;background:var(--text);padding:8px 16px;border-radius:999px}
+.limited{margin:6px auto 0;font-family:var(--display);font-weight:900;font-style:italic;text-transform:uppercase;font-size:17px;letter-spacing:.12em;color:var(--purple)}
 .about .callout h3{font-size:18px;line-height:1.2;width:100%}
 .actions.stack{display:grid;grid-template-columns:1fr 2fr;gap:10px;width:100%}
 .actions.stack .btn{width:100%;font-size:15px;padding:12px 10px;text-transform:uppercase}
@@ -222,6 +222,18 @@ html{scroll-padding-top:110px;scroll-padding-bottom:110px}
 .sumline{font-size:14px;color:var(--muted)}
 .sumline b{font-family:var(--display);font-weight:900;font-size:26px;color:var(--text);margin-right:2px}
 .sumline span{display:block;font-size:12.5px;margin-top:2px}
+
+
+/* paso 3 · huecos de clase y flexibilidad por clase */
+.bl{font-size:16px;color:var(--text);letter-spacing:.04em;margin-top:6px}
+.ctitle b{color:var(--purple);font-size:22px}
+.slots{display:flex;flex-direction:column;gap:8px}
+.slot{appearance:none;cursor:pointer;width:100%;min-height:56px;border:0;border-radius:12px;background:var(--purple);color:#0B0610;
+  font-family:var(--display);font-weight:900;font-style:italic;font-size:18px;text-transform:uppercase;touch-action:manipulation}
+.slot:nth-child(n+2){background:var(--purple-soft);color:var(--purple);border:1.5px solid var(--purple)}
+.builder.active+.slots .slot{background:var(--purple-soft);color:var(--purple);border:1.5px solid var(--purple)}
+.done .fx{display:block;font-size:12.5px;color:var(--purple);margin-top:2px}
+.done span{display:block}
 
 /* top bar */
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 14px}
@@ -432,11 +444,14 @@ const ESTILOS = ["Dancehall","Twerk","Afro","Heels","Sexy Style","Reggaeton","Co
 const MESES = (()=>{ const n=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]; const out=[]; for(let y=2026,m=9;y<2028;){ out.push(`${n[m]} ${y}`); m++; if(m===12){m=0;y++;} } return out; })();
 /* ============================================== */
 
+function newDraft(sala=""){ return {dias:[],sala,ini:"",fin:"",flexH:"",flexS:"",alt:[]}; }
+const FLEX_CORTO={"Necesito esas horas exactas":"Horario fijo","Media hora arriba o abajo":"±30 min","Una hora arriba o abajo":"±1 h","Me sirve cualquier franja de mañanas o tardes en el mismo día":"Cualquier franja del día"};
+function flexTxt(f){ const h=FLEX_CORTO[f.flexH]||""; const sl = f.flexS===FLEX_SALA[0] ? (f.alt.length?"también "+f.alt.map(id=>salaById(id).nombre.replace("Sala ","S")).join(", "):"otra sala") : f.flexS===FLEX_SALA[1] ? "solo más grande" : "solo esta sala"; return `${h} · ${sl}`; }
 const state = {
   screen:"welcome", step:0,
   nombre:"", artistico:"", instagram:"", email:"", telefono:"",
   anos:3, estilos:[], estiloOtro:"", alumnos:"", situacion:"",
-  franja:"ambas", finde:true, cal:null, franjas:[], showForm:false, draft:{dias:[],sala:"",ini:"",fin:""}, nextId:1,
+  franja:"ambas", finde:true, cal:null, franjas:[], showForm:false, draft:newDraft(), nextId:1,
   flexHorario:"", flexSala:"", salasAlt:[],
   inicio:"", inicioMes:"", tempIni:"", tempFin:"", ensayo:"", comentarios:"", rgpd:false,
   sent:null
@@ -484,6 +499,15 @@ function tally(){
   const h=x=>Math.round(x/6)/10;
   Object.keys(porSala).forEach(k=>porSala[k]=h(porSala[k]));
   return {am:h(am),pm:h(pm),total:h(am+pm),porSala};
+}
+function faltaDraft(f){
+  if(!f.dias.length) return "Marca al menos un día.";
+  if(!f.ini||!f.fin) return "Elige la hora de inicio y la de fin.";
+  if(!f.sala) return "Elige una sala.";
+  if(!f.flexH) return "Dinos si tienes flexibilidad para mover este horario.";
+  if(!f.flexS) return "Dinos si te valdría otra sala.";
+  if(f.flexS===FLEX_SALA[0] && f.sala!=="any" && !f.alt.length) return "Marca al menos una sala alternativa.";
+  return "";
 }
 function diasLargo(dias){ const l=DIAS.filter(d=>dias.includes(d)); return l.length<2?l.join(""):l.slice(0,-1).join(", ")+" y "+l[l.length-1]; }
 function diasTxt(dias){ return DIAS.filter(d=>dias.includes(d)).map(d=>d.slice(0,3)).join(" · "); }
@@ -604,7 +628,7 @@ const steps = {
       <input type="text" id="estiloOtro" placeholder="¿Cuál?" value="${esc(state.estiloOtro)}" ${state.estilos.includes("Otro")?"":"hidden"}>
       <div class="err" id="e-estilos"></div></div>
     <div class="q">${QL(3,"¿Cuántos alumnos sueles tener por clase?")}
-      <div class="chips">${["1–5","6–10","11–20","Más de 20"].map(v=>chipH("alumnos",v,state.alumnos===v)).join("")}</div><div class="err" id="e-alumnos"></div></div>
+      <div class="chips">${["1–5","6–10","11–15","16–20","Más de 20"].map(v=>chipH("alumnos",v,state.alumnos===v)).join("")}</div><div class="err" id="e-alumnos"></div></div>
     <div class="q">${QL(4,"Ahora mismo…")}
       <div class="chips">${["Doy clases en otra escuela","Voy a empezar con mis clases"].map(v=>chipH("situacion",v,state.situacion===v)).join("")}</div><div class="err" id="e-situacion"></div></div>
     ${navBtns()}`;
@@ -631,38 +655,38 @@ const steps = {
         <small>${s.capacidad}</small>${s.precio?`<span class="price">Desde ${s.precio} €/h <span class="iva">+ IVA</span></span>`:""}</button>`;
     const nClase = state.editBackup ? state.franjas.filter(x=>x.id<state.editBackup.id).length+1 : state.franjas.length+1;
     const list = state.franjas.map((f,i)=>`<li class="done"><span class="n">${i+1}</span>
-        <div><b>${diasLargo(f.dias)}</b><span>${f.ini}–${f.fin} · ${salaTxt(f.sala)}</span></div>
+        <div><b>${diasLargo(f.dias)}</b><span>${f.ini}–${f.fin} · ${salaTxt(f.sala)}</span><span class="fx">${flexTxt(f)}</span></div>
         <div class="dact"><button type="button" class="ib" data-edit-f="${f.id}" aria-label="Editar clase ${i+1}">✎</button><button type="button" class="ib" data-del="${f.id}" aria-label="Quitar clase ${i+1}">×</button></div></li>`).join("");
     const T=tally();
-    const form = `<div class="builder active">
-        <div class="ctitle"><b>Clase ${nClase}</b><small>${state.editBackup?"Editando":state.franjas.length?"Nueva":"Tu primera clase"}</small></div>
-        <div class="bl">Días <small>marca todos los días en que das esta clase</small></div>
+    const fh = FLEX_HORARIO.map(v=>`<button type="button" class="chip box" data-fh="${esc(v)}" aria-pressed="${d.flexH===v}">${esc(v)}</button>`).join("");
+    const fs = FLEX_SALA.map(v=>`<button type="button" class="chip" data-fs="${esc(v)}" aria-pressed="${d.flexS===v}">${esc(v)}</button>`).join("");
+    const alt = SALAS.filter(x=>x.id!==d.sala).map(x=>`<button type="button" class="room2" data-falt="${x.id}" aria-pressed="${d.alt.includes(x.id)}" style="--c:${x.color};--ink:${x.ink}"><span class="rt"><span class="sw">${x.n}</span><b>${x.nombre}</b><em>${x.m2} m<sup>2</sup></em></span><small>${x.capacidad}</small></button>`).join("");
+    const form = `<div class="builder active" id="claseForm">
+        <div class="ctitle"><b>Clase ${nClase}</b><small>${state.editBackup?"Editando":""}</small></div>
+        <div class="bl">Días</div>
         <div class="days7">${diasPermitidos().map(x=>`<button type="button" class="day${esFinde(x)?" we":""}" data-dia="${x}" aria-pressed="${d.dias.includes(x)}" aria-label="${x}">${x==="Miércoles"?"Mié":x==="Sábado"?"Sáb":x.slice(0,3)}</button>`).join("")}</div>
-        <div class="bl">Sala</div>
-        <div class="rooms2">${[...SALAS,CUALQUIERA].map(room).join("")}</div>
-        <p class="pnote">Si alquilas varias sesiones a la semana, ajustamos el precio según el volumen de horas.</p>
         <div class="bl">Horario</div>
         <div class="times"><label>De<select id="dIni">${opts(a,b-30,d.ini)}</select></label><label>a<select id="dFin">${opts(iniMin,b,d.fin)}</select></label></div>
+        <div class="bl">Sala</div>
+        <div class="rooms2">${[...SALAS,CUALQUIERA].map(room).join("")}</div>
+        <div class="bl">¿Tienes flexibilidad para mover este horario?</div>
+        <div class="chips grid4">${fh}</div>
+        <div class="bl">Si la sala está ocupada, ¿te valdría otra?</div>
+        <div class="chips">${fs}</div>
+        ${d.flexS===FLEX_SALA[0]&&d.sala!=="any"?`<p class="hint">Marca todas las salas que te sirvan.</p><div class="rooms2">${alt}</div>`:""}
         <div class="err" id="e-draft"></div>
         <div class="fbtns">${(state.franjas.length||state.editBackup)?`<button type="button" class="btn ghost" data-cancel-f>Cancelar</button>`:""}<button type="button" class="btn add" data-add>Guardar clase ${nClase}</button></div>
       </div>`;
+    const usados = state.franjas.length + (state.showForm?1:0);
+    const nSlots = Math.max(state.showForm?1:1, 4-usados);
+    const slots = Array.from({length:nSlots},(_,k)=>`<button type="button" class="slot" data-showform>+ Añadir clase ${usados+k+1}</button>`).join("");
     return `${stepHead("Tus clases")}
     <div class="q">${QL(1,"Añade las clases que quieres dar")}
-      <p class="hint">Abrimos de lunes a domingo, de 09:00 a 22:00. Añade cada clase por separado: puedes añadir todas las que necesites.</p>
       ${state.franjas.length?`<ul class="flist">${list}</ul>`:""}
-      ${(state.showForm||!state.franjas.length)?form:`<button type="button" class="btn addmore" data-showform>+ Añadir otra clase</button>`}
+      ${state.showForm?form:""}
+      <div class="slots">${slots}</div>
       ${state.franjas.length?`<div class="sumline"><b>${String(T.total).replace(".",",")}</b> h/semana · ${state.franjas.length} ${state.franjas.length===1?"clase":"clases"} <span>(${String(T.am).replace(".",",")} h de mañana, ${String(T.pm).replace(".",",")} h de tarde)</span></div>`:""}
       <div class="err" id="e-slots"></div>
-    </div>
-    <div class="q">${QL(2,"¿Tienes flexibilidad para mover tus horarios?")}
-      <div class="chips grid4">${FLEX_HORARIO.map(v=>chipH("flexHorario",v,state.flexHorario===v," box")).join("")}</div><div class="err" id="e-flexHorario"></div></div>
-    <div class="q">${QL(3,"Si la sala que has elegido está ocupada, ¿te valdría otra?")}
-      <div class="chips">${FLEX_SALA.map(v=>chipH("flexSala",v,state.flexSala===v)).join("")}</div><div class="err" id="e-flexSala"></div>
-      <div class="alt" id="altSalas" ${state.flexSala===FLEX_SALA[0]?"":"hidden"}>
-        <p class="hint">Marca todas las salas que te sirvan.</p>
-        <div class="rooms2">${SALAS.map(s=>`<button type="button" class="room2" data-alt="${s.id}" aria-pressed="${state.salasAlt.includes(s.id)}" style="--c:${s.color};--ink:${s.ink}"><span class="rt"><span class="sw">${s.n}</span><b>${s.nombre}</b><em>${s.m2} m<sup>2</sup></em></span><small>${s.capacidad}</small></button>`).join("")}</div>
-        <div class="err" id="e-salasAlt"></div>
-      </div>
     </div>
     ${navBtns()}`;
   },
@@ -690,10 +714,9 @@ const steps = {
   resumen(){
     const T = tally();
     const franjaTxt = [ {manana:"Mañanas (L–V)",tarde:"Tardes (L–V)",ambas:"Mañanas y tardes (L–V)"}[state.franja], state.finde?"Fines de semana":"" ].filter(Boolean).join(" + ");
-    const lista = state.franjas.map(f=>{const s=salaById(f.sala);return `<span class="sumrow"><span class="sw sm" style="--c:${s.color};--ink:${s.ink}">${s.n}</span>${diasTxt(f.dias)} · ${f.ini}–${f.fin} · ${salaTxt(f.sala)}</span>`;}).join("");
+    const lista = state.franjas.map(f=>{const s=salaById(f.sala);return `<span class="sumrow"><span class="sw sm" style="--c:${s.color};--ink:${s.ink}">${s.n}</span>${diasTxt(f.dias)} · ${f.ini}–${f.fin} · ${salaTxt(f.sala)}<br><span class="muted small">${flexTxt(f)}</span></span>`;}).join("");
     const row=(k,v,step)=>`<div><dt>${k}</dt><dd>${v||"—"}${step!==undefined?` <button class="linkbtn edit" data-edit="${step}">Cambiar</button>`:""}</dd></div>`;
     const estilos = state.estilos.map(e=>e==="Otro"&&state.estiloOtro?state.estiloOtro:e).join(", ");
-    const alt = state.flexSala===FLEX_SALA[0] ? `<br><span class="muted small">${state.salasAlt.map(salaTxt).join(", ")}</span>` : "";
     return `${stepHead("Revisa tu solicitud")}
     <dl class="sum">
       ${row("Nombre",esc(state.nombre)+(state.artistico?` · ${esc(state.artistico)}`:""),0)}
@@ -702,8 +725,7 @@ const steps = {
       ${row("Experiencia",`${state.anos} ${state.anos===1?"año":"años"} · ${esc(estilos)}`,1)}
       ${row("Alumnos por clase",esc(state.alumnos)+" · "+esc(state.situacion))}
       ${row("Horas",`<b>${T.total} h/semana</b> (${T.am} de mañana, ${T.pm} de tarde)`,2)}
-      ${row("Tus franjas",`<span class="sumlist">${lista}</span>`)}
-      ${row("Flexibilidad",`Horario: ${esc(state.flexHorario)}<br>Sala: ${esc(state.flexSala)}${alt}`,2)}
+      ${row("Tus clases",`<span class="sumlist">${lista}</span>`)}
       ${row("Empezar",esc(state.inicio==="Otra"?state.inicioMes:state.inicio),3)}
       ${row("Temporada",`${fmtFecha(state.tempIni)} – ${fmtFecha(state.tempFin)}`,3)}
       ${row("Salas a precio reducido",esc(state.ensayo),3)}
@@ -744,7 +766,7 @@ function done(){
 function buildPayload(){
   const T = tally();
   const franjas = [];
-  state.franjas.forEach(f=>DIAS.filter(d=>f.dias.includes(d)).forEach(dia=>franjas.push({dia,inicio:f.ini,fin:f.fin,horas:(toMin(f.fin)-toMin(f.ini))/60,bloque:toMin(f.ini)<840?(toMin(f.fin)>840?"Mañana y tarde":"Mañana"):"Tarde",sala:salaById(f.sala).nombre})));
+  state.franjas.forEach(f=>DIAS.filter(d=>f.dias.includes(d)).forEach(dia=>franjas.push({clase:state.franjas.indexOf(f)+1,dia,inicio:f.ini,fin:f.fin,flexibilidad_horario:f.flexH,flexibilidad_sala:f.flexS,salas_alternativas:f.flexS===FLEX_SALA[0]?f.alt.map(id=>salaById(id).nombre):[],horas:(toMin(f.fin)-toMin(f.ini))/60,bloque:toMin(f.ini)<840?(toMin(f.fin)>840?"Mañana y tarde":"Mañana"):"Tarde",sala:salaById(f.sala).nombre})));
   franjas.sort((a,b)=>DIAS.indexOf(a.dia)-DIAS.indexOf(b.dia)||a.inicio.localeCompare(b.inicio));
   return {
     origen:"co-dancing-2627",
@@ -767,9 +789,6 @@ function buildPayload(){
     horas_por_sala:Object.fromEntries(Object.entries(T.porSala).map(([id,n])=>[salaById(id).nombre,n])),
     franjas,
     franjas_texto:franjas.map(f=>`${f.dia} ${f.inicio}-${f.fin} · ${f.sala}`).join("\n"),
-    flexibilidad_horario:state.flexHorario,
-    flexibilidad_sala:state.flexSala,
-    salas_alternativas:state.flexSala===FLEX_SALA[0]?state.salasAlt.map(id=>salaById(id).nombre):[],
     inicio_deseado:state.inicio==="Otra"?state.inicioMes:state.inicio,
     temporada_inicio:state.tempIni,
     temporada_fin:state.tempFin,
@@ -796,11 +815,9 @@ function validate(key){
   }
   if(key==="franja") ok &= setErr("franja", (state.franja||state.finde)?"":"Elige al menos una opción.");
   if(key==="horario"){
-    { const f=state.draft, falta=[!f.dias.length&&"los días",!f.sala&&"la sala",(!f.ini||!f.fin)&&"el horario"].filter(Boolean);
-      ok &= setErr("slots", state.franjas.length?"":(f.dias.length||f.sala||f.ini||f.fin)?`Para añadir tu franja te falta elegir ${falta.join(" y ")}.`:"Añade al menos una franja: elige días, sala y horario."); }
-    ok &= setErr("flexHorario", state.flexHorario?"":"Elige una opción.");
-    ok &= setErr("flexSala", state.flexSala?"":"Elige una opción.");
-    if(state.flexSala===FLEX_SALA[0]) ok &= setErr("salasAlt", state.salasAlt.length?"":"Marca al menos una sala.");
+    { const m = state.showForm ? faltaDraft(state.draft) : "";
+      if(state.showForm && m){ setErr("draft",m); ok=false; }
+      else ok &= setErr("slots", state.franjas.length?"":"Añade al menos una clase."); }
   }
   if(key==="detalles"){
     ok &= setErr("inicio", !state.inicio?"Elige una opción.":(state.inicio==="Otra"&&!state.inicioMes?"Elige el mes.":""));
@@ -874,7 +891,7 @@ app.addEventListener("click", async e=>{
   if("next" in d){
     const key=FORM_STEPS[state.step];
     if(key==="horario"){ const f=state.draft;
-      if(f.dias.length && f.sala && f.ini && f.fin){ state.franjas.push({id:state.editBackup?state.editBackup.id:state.nextId++,dias:[...f.dias],sala:f.sala,ini:f.ini,fin:f.fin}); state.draft={dias:[],sala:"",ini:"",fin:""}; state.editBackup=null; state.showForm=false; state.franjas.sort((a,b)=>a.id-b.id); } else if(state.editBackup && !(f.dias.length||f.ini||f.fin)){ state.franjas.push(state.editBackup); state.editBackup=null; } }
+      if(state.showForm && !faltaDraft(f)){ state.franjas.push({id:state.editBackup?state.editBackup.id:state.nextId++,...JSON.parse(JSON.stringify(f))}); state.draft=newDraft(); state.editBackup=null; state.showForm=false; state.franjas.sort((a,b)=>a.id-b.id); } else if(state.editBackup && !(f.dias.length||f.ini||f.fin)){ state.franjas.push(state.editBackup); state.editBackup=null; } }
     if(validate(key)) go("form",state.step+1);
     else { const e=[...document.querySelectorAll(".err")].find(x=>x.textContent); if(e) e.scrollIntoView({behavior:"smooth",block:"center"}); }
     return; }
@@ -900,20 +917,23 @@ app.addEventListener("click", async e=>{
   if(d.cal){ if(state.cal===d.cal){ state.cal=null; } else { state.cal=d.cal; const base=state[d.cal]||(d.cal==="tempFin"&&state.tempIni)||"2026-09-01"; const [yy,mm]=base.split("-").map(Number); state.calView={y:yy,m:mm-1}; } const y=window.scrollY; render(); window.scrollTo(0,y); return; }
   if(d.calnav){ let {y,m}=state.calView; m+= +d.calnav; if(m<0){m=11;y--;} if(m>11){m=0;y++;} state.calView={y,m}; const sy=window.scrollY; render(); window.scrollTo(0,sy); return; }
   if(d.pick){ state[state.cal]=d.pick; if(state.cal==="tempIni" && state.tempFin && state.tempFin<=d.pick) state.tempFin=""; state.cal=null; setErr("temporada",""); const y=window.scrollY; render(); window.scrollTo(0,y); return; }
-  if(d.dsala){ state.draft.sala=d.dsala; b.parentElement.querySelectorAll(".room2").forEach(c=>c.setAttribute("aria-pressed",c===b)); setErr("draft",""); return; }
+  if(d.fh!==undefined){ state.draft.flexH=d.fh; b.parentElement.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===b)); setErr("draft",""); return; }
+  if(d.fs!==undefined){ state.draft.flexS=d.fs; if(d.fs!==FLEX_SALA[0]) state.draft.alt=[]; const y=window.scrollY; render(); window.scrollTo(0,y); return; }
+  if(d.falt){ const a=state.draft.alt, i=a.indexOf(d.falt); i>-1?a.splice(i,1):a.push(d.falt); b.setAttribute("aria-pressed",a.includes(d.falt)); setErr("draft",""); return; }
+  if(d.dsala){ state.draft.sala=d.dsala; state.draft.alt=state.draft.alt.filter(x=>x!==d.dsala); b.parentElement.querySelectorAll(".room2").forEach(c=>c.setAttribute("aria-pressed",c===b)); setErr("draft",""); if(state.draft.flexS===FLEX_SALA[0]){ const y=window.scrollY; render(); window.scrollTo(0,y); } return; }
   if(d.alt){ const a=state.salasAlt, i=a.indexOf(d.alt); i>-1?a.splice(i,1):a.push(d.alt); b.setAttribute("aria-pressed",a.includes(d.alt)); setErr("salasAlt",""); return; }
   if("add" in d){
     const f=state.draft;
-    const msg = !f.dias.length?"Marca al menos un día.":!f.sala?"Elige una sala.":(!f.ini||!f.fin)?"Elige la hora de inicio y la de fin.":"";
-    if(msg){ setErr("draft",msg); return; }
+    const msg = faltaDraft(f);
+    if(msg){ setErr("draft",msg); const e=document.getElementById("e-draft"); if(e) e.scrollIntoView({behavior:"smooth",block:"center"}); return; }
     const keepId = state.editBackup ? state.editBackup.id : state.nextId++;
-    state.franjas.push({id:keepId,dias:[...f.dias],sala:f.sala,ini:f.ini,fin:f.fin}); state.franjas.sort((a,b)=>a.id-b.id); state.editBackup=null;
-    state.draft={dias:[],sala:f.sala,ini:"",fin:""};
+    state.franjas.push({id:keepId,...JSON.parse(JSON.stringify(f))}); state.franjas.sort((a,b)=>a.id-b.id); state.editBackup=null;
+    state.draft=newDraft(f.sala);
     state.showForm=false; const y=window.scrollY; render(); window.scrollTo(0,y); toast("Clase guardada"); return;
   }
-  if("showform" in d){ state.showForm=true; state.draft={dias:[],sala:state.draft.sala||"",ini:"",fin:""}; render(); const c=document.querySelector(".builder.active"); if(c) c.scrollIntoView({behavior:"smooth",block:"start"}); return; }
-  if("cancelF" in d){ if(state.editBackup){ state.franjas.push(state.editBackup); state.franjas.sort((a,b)=>a.id-b.id); state.editBackup=null; } state.showForm=false; state.draft={dias:[],sala:"",ini:"",fin:""}; const y=window.scrollY; render(); window.scrollTo(0,y); return; }
-  if(d.editF){ const f=state.franjas.find(x=>x.id==+d.editF); if(f){ if(state.editBackup) state.franjas.push(state.editBackup); state.editBackup=f; state.franjas=state.franjas.filter(x=>x.id!==f.id); state.draft={dias:[...f.dias],sala:f.sala,ini:f.ini,fin:f.fin}; state.showForm=true; render(); const c=document.querySelector(".builder.active"); if(c) c.scrollIntoView({behavior:"smooth",block:"start"}); } return; }
+  if("showform" in d){ if(state.showForm){ const c=document.getElementById("claseForm"); if(c) c.scrollIntoView({behavior:"smooth",block:"start"}); setErr("draft","Guarda o cancela esta clase antes de añadir otra."); return; } state.showForm=true; state.draft=newDraft(state.draft.sala||""); render(); const c=document.querySelector(".builder.active"); if(c) c.scrollIntoView({behavior:"smooth",block:"start"}); return; }
+  if("cancelF" in d){ state.draft=newDraft(); if(state.editBackup){ state.franjas.push(state.editBackup); state.franjas.sort((a,b)=>a.id-b.id); state.editBackup=null; } state.showForm=false; const y=window.scrollY; render(); window.scrollTo(0,y); return; }
+  if(d.editF){ const f=state.franjas.find(x=>x.id==+d.editF); if(f){ if(state.editBackup) state.franjas.push(state.editBackup); state.editBackup=f; state.franjas=state.franjas.filter(x=>x.id!==f.id); state.draft={dias:[...f.dias],sala:f.sala,ini:f.ini,fin:f.fin,flexH:f.flexH,flexS:f.flexS,alt:[...f.alt]}; state.showForm=true; render(); const c=document.querySelector(".builder.active"); if(c) c.scrollIntoView({behavior:"smooth",block:"start"}); } return; }
   if(d.del){ state.franjas=state.franjas.filter(f=>f.id!=+d.del); const y=window.scrollY; render(); window.scrollTo(0,y); return; }
   if("send" in d){
     const payload = buildPayload(); b.disabled=true; b.textContent="Enviando…";
